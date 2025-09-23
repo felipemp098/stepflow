@@ -19,6 +19,15 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        
+        /* Stepflow Design Tokens */
+        "fg-1": "hsl(var(--fg-1))",
+        "fg-2": "hsl(var(--fg-2))",
+        "fg-3": "hsl(var(--fg-3))",
+        "surface-1": "hsl(var(--surface-1))",
+        "surface-2": "hsl(var(--surface-2))",
+        "border-hairline": "hsl(var(--border-hairline))",
+        
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -57,11 +66,36 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        
+        /* Status Colors */
+        financial: "hsl(var(--financial))",
+        operational: "hsl(var(--operational))",
+        data: "hsl(var(--data))",
+        error: "hsl(var(--error))",
+        success: "hsl(var(--success))",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "card": "12px",
+        "input": "10px", 
+        "full": "9999px",
+      },
+      maxWidth: {
+        "content": "1280px",
+      },
+      spacing: {
+        "gutter": "24px",
+      },
+      transitionDuration: {
+        "xs": "120ms",
+        "sm": "160ms", 
+        "md": "200ms",
+        "lg": "260ms",
+      },
+      transitionTimingFunction: {
+        "stepflow": "cubic-bezier(0.2, 0, 0, 1)",
       },
       keyframes: {
         "accordion-down": {
