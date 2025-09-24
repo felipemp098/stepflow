@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { EmailField } from "@/components/auth/EmailField";
 import { PasswordField } from "@/components/auth/PasswordField";
@@ -15,28 +16,55 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { signIn, signInWithGoogle, user } = useAuth();
+  const navigate = useNavigate();
 
-  const isFormValid = email.trim() !== "" && password.length >= 6;
+  const isFormValid = email.trim() !== "" && email.includes("@") && password.length >= 6;
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      // Mock error for demo
-      if (email === "error@test.com") {
-        setError("E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.");
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          setError("E-mail ou senha incorretos. Verifique suas credenciais e tente novamente.");
+        } else if (error.message.includes("Email not confirmed")) {
+          setError("Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.");
+        } else {
+          setError(error.message || "Erro ao fazer login. Tente novamente.");
+        }
       } else {
-        console.log("Login attempt:", { email, password });
+        // Login successful, user will be redirected by useEffect
+        navigate("/");
       }
-    }, 1500);
+    } catch (err) {
+      setError("Erro inesperado. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleOAuthLogin = (provider: string) => {
-    console.log(`OAuth login with ${provider}`);
+  const handleOAuthLogin = async () => {
+    setError("");
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setError("Erro ao fazer login com Google. Tente novamente.");
+      }
+    } catch (err) {
+      setError("Erro inesperado. Tente novamente.");
+    }
   };
 
   return (
@@ -156,7 +184,7 @@ export default function Login() {
           >
             <OAuthButton
               provider="google"
-              onClick={() => handleOAuthLogin("google")}
+              onClick={handleOAuthLogin}
               disabled={loading}
             />
           </motion.div>

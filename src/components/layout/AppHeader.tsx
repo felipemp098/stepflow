@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Menu, ChevronDown, User, Settings, LogOut, Monitor, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AppHeaderProps {
   onMenuClick: () => void;
@@ -31,8 +32,22 @@ const getStatusColor = (status: string) => {
 
 export function AppHeader({ onMenuClick, showMenuButton }: AppHeaderProps) {
   const { theme, setTheme } = useTheme();
+  const { user, signOut } = useAuth();
+  const [selectedClient, setSelectedClient] = useState("all");
 
   const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  const getUserInitials = (email: string) => {
+    return email.substring(0, 2).toUpperCase();
+  };
+
+  const getUserName = () => {
+    return user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
+  };
 
   return (
     <header className="h-16 border-b border-hairline bg-card shadow-sm">
@@ -113,15 +128,15 @@ export function AppHeader({ onMenuClick, showMenuButton }: AppHeaderProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 text-fg-1 hover:bg-accent">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-                    JD
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden sm:block text-left">
-                  <div className="text-sm font-medium">João Silva</div>
-                  <div className="text-xs text-fg-3">Administrador</div>
-                </div>
+               <Avatar className="h-8 w-8">
+                 <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                   {user?.email ? getUserInitials(user.email) : "U"}
+                 </AvatarFallback>
+               </Avatar>
+               <div className="hidden sm:block text-left">
+                 <div className="text-sm font-medium">{getUserName()}</div>
+                 <div className="text-xs text-fg-3">Administrador</div>
+               </div>
                 <ChevronDown className="h-4 w-4 text-fg-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -135,7 +150,7 @@ export function AppHeader({ onMenuClick, showMenuButton }: AppHeaderProps) {
                 Configurações
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border-hairline" />
-              <DropdownMenuItem className="text-error hover:bg-error/5">
+              <DropdownMenuItem className="text-error hover:bg-error/5" onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sair
               </DropdownMenuItem>

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { EmailField } from "@/components/auth/EmailField";
 import { PasswordField } from "@/components/auth/PasswordField";
@@ -19,28 +20,48 @@ export default function SignUp() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const { signUp, user } = useAuth();
+  const navigate = useNavigate();
 
   const isFormValid = 
     name.trim() !== "" && 
     email.trim() !== "" && 
+    email.includes("@") &&
     password.length >= 6 && 
     acceptTerms;
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      // Mock error for demo
-      if (email === "error@test.com") {
-        setError("Este e-mail já está em uso. Tente fazer login ou use outro e-mail.");
+    try {
+      const { error } = await signUp(email, password, name);
+      
+      if (error) {
+        if (error.message.includes("User already registered")) {
+          setError("Este e-mail já está em uso. Tente fazer login ou use outro e-mail.");
+        } else if (error.message.includes("Password")) {
+          setError("A senha deve ter pelo menos 6 caracteres.");
+        } else {
+          setError(error.message || "Erro ao criar conta. Tente novamente.");
+        }
       } else {
-        console.log("Sign up attempt:", { name, email, password, acceptTerms });
+        setSuccess(true);
       }
-    }, 1500);
+    } catch (err) {
+      setError("Erro inesperado. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,11 +72,25 @@ export default function SignUp() {
       </div>
 
       <AuthCard 
-        title="Criar conta"
-        subtitle="Vamos começar"
+        title={success ? "Verifique seu e-mail" : "Criar conta"}
+        subtitle={success ? "Enviamos um link de confirmação para seu e-mail" : "Vamos começar"}
         className="max-w-lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {success ? (
+          <div className="text-center space-y-4">
+            <div className="text-sm text-fg-2">
+              Enviamos um link de confirmação para <strong>{email}</strong>. 
+              Clique no link para ativar sua conta.
+            </div>
+            <Link
+              to="/auth/login"
+              className="text-primary hover:text-primary/80 font-medium transition-colors duration-sm"
+            >
+              Voltar ao login
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
           {/* Error Banner */}
           {error && (
             <ErrorBanner 
@@ -182,6 +217,7 @@ export default function SignUp() {
             </span>
           </motion.div>
         </form>
+        )}
       </AuthCard>
     </div>
   );
