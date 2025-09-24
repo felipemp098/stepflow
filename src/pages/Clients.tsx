@@ -1,58 +1,37 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, MoreHorizontal, Mail, Phone, Users } from 'lucide-react';
+import { Search, Filter, Plus, MoreHorizontal, Mail, Phone, Users, Loader2, AlertCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SectionHeader } from '@/components/ui-custom/SectionHeader';
 import { StatusChip } from '@/components/ui-custom/StatusChip';
 import { EmptyState } from '@/components/ui-custom/EmptyState';
+import { useClientes } from '@/hooks/useClientes';
+import { Database } from '@/integrations/supabase/types';
 
-const mockClients = [
-  {
-    id: '1',
-    name: 'Tech Solutions Corp',
-    email: 'contato@techsolutions.com',
-    phone: '(11) 99999-1234',
-    status: 'active' as const,
-    createdAt: '2024-01-15',
-  },
-  {
-    id: '2', 
-    name: 'Digital Innovators Ltd',
-    email: 'hello@digitalinnovators.com',
-    phone: '(11) 98888-5678',
-    status: 'active' as const,
-    createdAt: '2024-02-03',
-  },
-  {
-    id: '3',
-    name: 'Future Systems Inc',
-    email: 'info@futuresystems.com',
-    phone: '(11) 97777-9012',
-    status: 'pending' as const,
-    createdAt: '2024-02-10',
-  },
-  {
-    id: '4',
-    name: 'Smart Business Co',
-    email: 'contact@smartbusiness.com',
-    phone: '(11) 96666-3456',
-    status: 'inactive' as const,
-    createdAt: '2024-01-28',
-  },
-];
+type Cliente = Database['public']['Tables']['clientes']['Row'];
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  
+  // Hook para gerenciar clientes
+  const {
+    clientes,
+    loading,
+    error,
+    deleteCliente,
+    clearError
+  } = useClientes();
 
-  const filteredClients = mockClients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || client.status === selectedStatus;
+  // Filtrar clientes localmente
+  const filteredClients = clientes.filter(cliente => {
+    const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === 'all' || cliente.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -60,7 +39,70 @@ export default function Clients() {
     window.location.href = '/clients/add';
   };
 
-  if (mockClients.length === 0) {
+  const handleDeleteClient = async (id: string, nome: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir o cliente "${nome}"?`)) {
+      const result = await deleteCliente(id);
+      if (!result.success) {
+        alert(`Erro ao excluir cliente: ${result.error}`);
+      }
+    }
+  };
+
+  const handleEditClient = (id: string) => {
+    window.location.href = `/clients/edit/${id}`;
+  };
+
+  const handleViewClient = (id: string) => {
+    window.location.href = `/clients/${id}`;
+  };
+
+  // Mostrar erro se houver
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <SectionHeader 
+          title="Clientes" 
+          description="Gerencie seus clientes"
+          action={{ label: 'Adicionar Cliente', onClick: handleAddClient }}
+        />
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="ml-2"
+              onClick={clearError}
+            >
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Mostrar loading
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <SectionHeader 
+          title="Clientes" 
+          description="Gerencie seus clientes"
+          action={{ label: 'Adicionar Cliente', onClick: handleAddClient }}
+        />
+        <Card className="shadow-card-md">
+          <CardContent className="p-12 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-fg-3">Carregando clientes...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (clientes.length === 0) {
     return (
       <div className="space-y-6">
         <SectionHeader 
@@ -109,20 +151,28 @@ export default function Clients() {
                 Todos
               </Button>
               <Button 
-                variant={selectedStatus === 'active' ? 'default' : 'outline'}
+                variant={selectedStatus === 'ativo' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedStatus('active')}
+                onClick={() => setSelectedStatus('ativo')}
                 className="border-hairline"
               >
                 Ativos
               </Button>
               <Button 
-                variant={selectedStatus === 'pending' ? 'default' : 'outline'}
+                variant={selectedStatus === 'inativo' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedStatus('pending')}
+                onClick={() => setSelectedStatus('inativo')}
                 className="border-hairline"
               >
-                Pendentes
+                Inativos
+              </Button>
+              <Button 
+                variant={selectedStatus === 'suspenso' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedStatus('suspenso')}
+                className="border-hairline"
+              >
+                Suspensos
               </Button>
             </div>
           </div>
@@ -139,18 +189,20 @@ export default function Clients() {
           <Table>
             <TableHeader>
               <TableRow className="border-b border-hairline">
-                <TableHead className="text-fg-2 font-medium">Nome</TableHead>
-                <TableHead className="text-fg-2 font-medium">E-mail</TableHead>
-                <TableHead className="text-fg-2 font-medium">Telefone</TableHead>
-                <TableHead className="text-fg-2 font-medium">Status</TableHead>
-                <TableHead className="text-fg-2 font-medium">Criado em</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="text-fg-2 font-medium text-left">Nome</TableHead>
+                <TableHead className="text-fg-2 font-medium text-center">E-mail</TableHead>
+                <TableHead className="text-fg-2 font-medium text-center">Telefone</TableHead>
+                <TableHead className="text-fg-2 font-medium text-center">Alunos</TableHead>
+                <TableHead className="text-fg-2 font-medium text-center">Contratos</TableHead>
+                <TableHead className="text-fg-2 font-medium text-center">Status</TableHead>
+                <TableHead className="text-fg-2 font-medium text-center">Data de criação</TableHead>
+                <TableHead className="w-12 text-center"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredClients.map((client, index) => (
+              {filteredClients.map((cliente, index) => (
                 <motion.tr
-                  key={client.id}
+                  key={cliente.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ 
@@ -160,47 +212,78 @@ export default function Clients() {
                   }}
                   className="border-b border-hairline hover:bg-surface-1/50 transition-colors"
                 >
-                  <TableCell>
-                    <div className="font-medium text-fg-1">{client.name}</div>
+                  <TableCell className="text-left">
+                    <div className="font-medium text-fg-1">{cliente.nome}</div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-fg-2">
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-2 text-fg-2">
                       <Mail className="h-4 w-4" />
-                      {client.email}
+                      <span className="text-fg-3">
+                        {cliente.email || 'Não informado'}
+                      </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-fg-2">
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-2 text-fg-2">
                       <Phone className="h-4 w-4" />
-                      {client.phone}
+                      <span className="text-fg-3">
+                        {cliente.telefone || 'Não informado'}
+                      </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <StatusChip status={client.status}>
-                      {client.status === 'active' ? 'Ativo' : 
-                       client.status === 'pending' ? 'Pendente' : 'Inativo'}
-                    </StatusChip>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Users className="h-4 w-4 text-fg-3" />
+                      <span className="text-fg-2 font-medium">
+                        {Math.floor(Math.random() * 20) + 1}
+                      </span>
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <FileText className="h-4 w-4 text-fg-3" />
+                      <span className="text-fg-2 font-medium">
+                        {Math.floor(Math.random() * 10) + 1}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      <StatusChip status={cliente.status === 'ativo' ? 'active' : cliente.status === 'inativo' ? 'inactive' : 'pending'}>
+                        {cliente.status === 'ativo' ? 'Ativo' : 
+                         cliente.status === 'inativo' ? 'Inativo' : 'Suspenso'}
+                      </StatusChip>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
                     <span className="text-fg-3">
-                      {new Date(client.createdAt).toLocaleDateString('pt-BR')}
+                      {cliente.created_at ? new Date(cliente.created_at).toLocaleDateString('pt-BR') : 'Não informado'}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover border-hairline">
-                        <DropdownMenuItem className="text-fg-1 hover:bg-accent">
+                        <DropdownMenuItem 
+                          className="text-fg-1 hover:bg-accent cursor-pointer"
+                          onClick={() => handleViewClient(cliente.id)}
+                        >
                           Ver detalhes
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-fg-1 hover:bg-accent">
+                        <DropdownMenuItem 
+                          className="text-fg-1 hover:bg-accent cursor-pointer"
+                          onClick={() => handleEditClient(cliente.id)}
+                        >
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-error hover:bg-error/5">
+                        <DropdownMenuItem 
+                          className="text-error hover:bg-error/5 cursor-pointer"
+                          onClick={() => handleDeleteClient(cliente.id, cliente.nome)}
+                        >
                           Excluir
                         </DropdownMenuItem>
                       </DropdownMenuContent>
