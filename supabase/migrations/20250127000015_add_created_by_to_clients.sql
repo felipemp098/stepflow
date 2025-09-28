@@ -71,3 +71,4 @@ FROM public.user_client_roles ucr
 JOIN public.clientes c ON c.id = ucr.cliente_id
 WHERE ucr.user_id = 'd3426630-0c63-4ea1-ac5c-09f2da108559'
 ORDER BY c.nome;
+

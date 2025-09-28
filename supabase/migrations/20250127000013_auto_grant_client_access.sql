@@ -33,3 +33,4 @@ CREATE TRIGGER trigger_auto_grant_client_access
 -- Test the trigger by checking if it works
 -- This will be tested when a new client is created
 SELECT 'Trigger created successfully' as status;
+

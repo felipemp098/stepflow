@@ -66,3 +66,4 @@ SELECT
   public.is_user_admin() as is_admin,
   public.has_client_access('550e8400-e29b-41d4-a716-446655440001'::UUID) as has_access
 FROM public.clientes LIMIT 1;
+

@@ -74,3 +74,4 @@ SELECT
   'Trigger setup complete' as status,
   'created_by column exists' as column_check,
   'triggers created' as trigger_check;
+
