@@ -1,23 +1,27 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, MoreHorizontal, Mail, Phone, Users, Loader2, AlertCircle, FileText } from 'lucide-react';
+import { Search, Filter, Plus, MoreHorizontal, Mail, Phone, Users, Loader2, AlertCircle, FileText, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { SectionHeader } from '@/components/ui-custom/SectionHeader';
 import { StatusChip } from '@/components/ui-custom/StatusChip';
 import { EmptyState } from '@/components/ui-custom/EmptyState';
 import { useClientes } from '@/hooks/useClientes';
 import { Database } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
 
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clienteToDelete, setClienteToDelete] = useState<{ id: string; nome: string } | null>(null);
   
   // Hook para gerenciar clientes
   const {
@@ -39,13 +43,27 @@ export default function Clients() {
     window.location.href = '/clients/add';
   };
 
-  const handleDeleteClient = async (id: string, nome: string) => {
-    if (window.confirm(`Tem certeza que deseja excluir o cliente "${nome}"?`)) {
-      const result = await deleteCliente(id);
-      if (!result.success) {
-        alert(`Erro ao excluir cliente: ${result.error}`);
-      }
+  const handleDeleteClient = (id: string, nome: string) => {
+    setClienteToDelete({ id, nome });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!clienteToDelete) return;
+    
+    const result = await deleteCliente(clienteToDelete.id);
+    if (result.success) {
+      toast.success('Cliente excluído com sucesso!', {
+        description: `"${clienteToDelete.nome}" e todos os usuários relacionados foram removidos.`
+      });
+    } else {
+      toast.error('Erro ao excluir cliente', {
+        description: result.error || 'Ocorreu um erro inesperado. Tente novamente.'
+      });
     }
+    
+    setDeleteDialogOpen(false);
+    setClienteToDelete(null);
   };
 
   const handleEditClient = (id: string) => {
@@ -310,6 +328,49 @@ export default function Clients() {
           </Card>
         </motion.div>
       )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <div className="text-base font-medium text-foreground">
+                Tem certeza que deseja excluir o cliente <strong>"{clienteToDelete?.nome}"</strong>?
+              </div>
+              
+              <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="text-sm text-red-800 dark:text-red-200 font-medium mb-2">
+                  ⚠️ Esta ação é IRREVERSÍVEL!
+                </div>
+                <div className="text-sm text-red-700 dark:text-red-300">
+                  Ao excluir este cliente, também serão excluídos:
+                </div>
+                <ul className="text-sm text-red-700 dark:text-red-300 mt-2 ml-4 space-y-1">
+                  <li>• Todos os usuários vinculados ao cliente</li>
+                  <li>• Todos os vínculos e permissões</li>
+                  <li>• Todos os perfis de usuário</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir Cliente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

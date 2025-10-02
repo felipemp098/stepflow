@@ -133,23 +133,46 @@ export class ClientesHandler {
   }
 
   /**
-   * Remove um cliente (apenas admins)
+   * Remove um cliente e todos os usuários relacionados (apenas admins)
    */
   async delete(id: string): Promise<ApiResponse<void>> {
     try {
-      this.logger.info('Removendo cliente', { id, requestId: this.requestId });
+      this.logger.info('Removendo cliente e usuários relacionados', { id, requestId: this.requestId });
       
-      const { error } = await supabase
-        .from('clientes')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        this.logger.error('Erro ao remover cliente', { id, error: error.message, requestId: this.requestId });
-        return createErrorResponse('DATABASE_ERROR', `Erro ao remover cliente: ${error.message}`);
+      // Usar Edge Function para exclusão em cascata
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        this.logger.error('Usuário não autenticado para exclusão', { id, requestId: this.requestId });
+        return createErrorResponse('UNAUTHORIZED', 'Usuário não autenticado');
       }
 
-      this.logger.info('Cliente removido com sucesso', { id, requestId: this.requestId });
+      const response = await fetch(`${supabaseUrl}/functions/v1/delete-client-cascade`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cliente_id: id
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        this.logger.error('Erro ao remover cliente via Edge Function', { id, error: result.error, requestId: this.requestId });
+        return createErrorResponse('DATABASE_ERROR', result.error || 'Erro ao remover cliente');
+      }
+
+      this.logger.info('Cliente e usuários relacionados removidos com sucesso', { 
+        id, 
+        deleted_users: result.deleted_users,
+        cliente_nome: result.cliente_nome,
+        requestId: this.requestId 
+      });
+      
       return createSuccessResponse(undefined);
     } catch (error) {
       this.logger.error('Erro inesperado ao remover cliente', { id, error, requestId: this.requestId });

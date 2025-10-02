@@ -7,14 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useClientes } from '@/hooks/useClientes';
 import { toast } from 'sonner';
+import { UserCreatedAlert } from '@/components/ui-custom/UserCreatedAlert';
 
 export default function ClientForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { createCliente, updateCliente, loadCliente, cliente, loadingCliente, creating, updating } = useClientes();
+  const { createCliente, updateCliente, loadCliente, cliente, loadingCliente, creating, updating, creatingUser, userError } = useClientes();
   
   const isEditMode = !!id;
   
@@ -29,6 +31,27 @@ export default function ClientForm() {
     observacoes: '',
     status: 'ativo'
   });
+
+  const [createdUser, setCreatedUser] = useState<{
+    id: string;
+    email: string;
+    temp_password: string;
+  } | null>(null);
+
+  // Função para limpar o formulário
+  const clearForm = () => {
+    setFormData({
+      nome: '',
+      email: '',
+      telefone: '',
+      cnpj: '',
+      cpf: '',
+      endereco: '',
+      instagram: '',
+      observacoes: '',
+      status: 'ativo'
+    });
+  };
 
   // Carregar dados do cliente se estiver editando
   useEffect(() => {
@@ -66,15 +89,24 @@ export default function ClientForm() {
         } else {
           toast.error(result.error || 'Erro ao atualizar cliente');
         }
-      } else {
-        const result = await createCliente(formData);
-        if (result.success) {
-          toast.success('Cliente criado com sucesso!');
-          navigate('/clients');
         } else {
-          toast.error(result.error || 'Erro ao criar cliente');
+          const result = await createCliente(formData);
+          if (result.success) {
+            if (result.userCreated && result.createdUser) {
+              // Se o usuário foi criado, mostrar alerta com credenciais
+              setCreatedUser(result.createdUser);
+              toast.success('Cliente e usuário criados com sucesso!');
+              // Limpar formulário após sucesso
+              clearForm();
+            } else {
+              toast.success('Cliente criado com sucesso! (Usuário não foi criado - email não informado)');
+              navigate('/clients');
+            }
+          } else {
+            toast.error(result.error || 'Erro ao criar cliente');
+            // Se falhou, não navegar - deixar usuário tentar novamente
+          }
         }
-      }
     } catch (error) {
       toast.error('Erro inesperado ao salvar cliente');
     }
@@ -124,8 +156,29 @@ export default function ClientForm() {
                 <span className="ml-2 text-fg-3">Carregando dados do cliente...</span>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Nome e Status */}
+              <div className="space-y-6">
+                {/* Alerta de usuário criado */}
+                {createdUser && (
+                  <UserCreatedAlert 
+                    user={createdUser}
+                    onClose={() => {
+                      setCreatedUser(null);
+                      navigate('/clients');
+                    }}
+                  />
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Error de criação de usuário */}
+                  {userError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        Cliente criado com sucesso, mas houve um erro ao criar o usuário: {userError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Nome e Status */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="nome" className="text-fg-1 font-medium">
@@ -266,14 +319,16 @@ export default function ClientForm() {
                   <Button 
                     type="submit" 
                     className="bg-primary hover:bg-primary/90"
-                    disabled={creating || updating}
+                    disabled={creating || updating || creatingUser}
                   >
-                    {(creating || updating) ? (
+                    {(creating || updating || creatingUser) ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Save className="h-4 w-4 mr-2" />
                     )}
-                    {isEditMode ? 'Atualizar Cliente' : 'Salvar Cliente'}
+                    {isEditMode ? 'Atualizar Cliente' : 
+                     creatingUser ? 'Criando Usuário...' : 
+                     'Salvar Cliente'}
                   </Button>
                   <Button 
                     type="button" 
@@ -285,7 +340,8 @@ export default function ClientForm() {
                     Cancelar
                   </Button>
                 </div>
-              </form>
+                </form>
+              </div>
             )}
           </CardContent>
         </Card>

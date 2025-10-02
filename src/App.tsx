@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import Login from "./pages/auth/Login";
 import SignUp from "./pages/auth/SignUp";
 import MagicLink from "./pages/auth/MagicLink";
+import DebugAuth from "./pages/DebugAuth";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
                   <Route path="/products/add" element={<ProductForm />} />
                   <Route path="/products/edit/:id" element={<ProductForm />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/debug-auth" element={<DebugAuth />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </ProtectedRoute>

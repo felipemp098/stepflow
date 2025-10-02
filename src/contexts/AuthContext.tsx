@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import { FixAdminRole } from '@/lib/fix-admin-role';
+import { isSuperAdmin, canCreateUsers, getUserAccessLevel } from '@/lib/auth/permissions';
 
 type UserRole = Database['public']['Enums']['user_role'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
@@ -17,6 +19,9 @@ interface AuthContextType {
   currentCliente: Cliente | null;
   userRoles: UserClientRole[];
   currentRole: UserRole | null;
+  isSuperAdmin: boolean;
+  canCreateUsers: boolean;
+  accessLevel: 'super_admin' | 'admin' | 'cliente' | 'aluno' | 'none';
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, name?: string) => Promise<{ error: any }>;
   signInWithMagicLink: (email: string) => Promise<{ error: any }>;
@@ -24,6 +29,7 @@ interface AuthContextType {
   signOut: () => Promise<{ error: any }>;
   setCurrentCliente: (cliente: Cliente | null) => void;
   refreshUserData: () => Promise<void>;
+  fixAdminRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,6 +42,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentCliente, setCurrentCliente] = useState<Cliente | null>(null);
   const [userRoles, setUserRoles] = useState<UserClientRole[]>([]);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
+
+  // Calcular permissões baseadas no usuário e roles
+  const isSuperAdminUser = isSuperAdmin(user);
+  const canCreateUsersFlag = canCreateUsers(user, userRoles);
+  const accessLevel = getUserAccessLevel(user, userRoles);
+
+  // Log de debug das permissões
+  useEffect(() => {
+    if (user) {
+      console.log('🔐 Permissões do usuário:', {
+        userId: user.id,
+        email: user.email,
+        isSuperAdmin: isSuperAdminUser,
+        canCreateUsers: canCreateUsersFlag,
+        accessLevel,
+        userRoles: userRoles.length,
+        userMetadata: user.user_metadata
+      });
+    }
+  }, [user, isSuperAdminUser, canCreateUsersFlag, accessLevel, userRoles]);
 
   // Função para buscar dados do usuário (clientes e papéis)
   const fetchUserData = async (userId: string) => {
@@ -228,6 +254,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fixAdminRole = async () => {
+    await FixAdminRole.fix();
+  };
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -287,6 +317,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentCliente,
     userRoles,
     currentRole,
+    isSuperAdmin: isSuperAdminUser,
+    canCreateUsers: canCreateUsersFlag,
+    accessLevel,
     signIn,
     signUp,
     signInWithMagicLink,
@@ -294,6 +327,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     setCurrentCliente: handleSetCurrentCliente,
     refreshUserData,
+    fixAdminRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

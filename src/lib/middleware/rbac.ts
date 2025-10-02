@@ -1,5 +1,6 @@
 import { Database } from '@/integrations/supabase/types';
 import { TenantContext } from './tenant';
+import { User } from '@supabase/supabase-js';
 
 type UserRole = Database['public']['Enums']['user_role'];
 
@@ -113,6 +114,11 @@ export class RBACGuard {
     resource: string,
     action: 'read' | 'create' | 'update' | 'delete'
   ): boolean {
+    // Verificar se é super admin via user_metadata
+    if (context.user?.user_metadata?.role === 'super_admin') {
+      return true;
+    }
+
     const config = RBAC_MATRIX[resource];
     
     if (!config) {

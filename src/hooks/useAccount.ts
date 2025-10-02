@@ -63,12 +63,45 @@ export function useAccount(): UseAccountReturn {
 
   // Helper function to handle API errors
   const handleApiError = (error: any): string => {
-    if (error?.error?.message) {
-      return error.error.message;
-    }
-    if (error?.message) {
+    console.log('🔍 Analisando erro no useAccount:', error);
+    
+    // Se é um Error object com message
+    if (error instanceof Error) {
+      console.log('📝 Erro é instância de Error:', error.message);
       return error.message;
     }
+    
+    // Se tem propriedade error.message
+    if (error?.error?.message) {
+      console.log('📝 Erro tem error.message:', error.error.message);
+      return error.error.message;
+    }
+    
+    // Se tem propriedade message direta
+    if (error?.message) {
+      console.log('📝 Erro tem message direta:', error.message);
+      return error.message;
+    }
+    
+    // Se tem propriedade error direta (string)
+    if (error?.error && typeof error.error === 'string') {
+      console.log('📝 Erro tem error string:', error.error);
+      return error.error;
+    }
+    
+    // Se tem propriedade msg
+    if (error?.msg) {
+      console.log('📝 Erro tem msg:', error.msg);
+      return error.msg;
+    }
+    
+    // Se é uma string direta
+    if (typeof error === 'string') {
+      console.log('📝 Erro é string direta:', error);
+      return error;
+    }
+    
+    console.log('❌ Erro não identificado no useAccount, retornando genérico');
     return 'Erro desconhecido';
   };
 
